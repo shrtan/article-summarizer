@@ -1,0 +1,98 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(xml2)
+library(rvest)
+library(lexRankr)
+library(officer)
+library(downloader)
+library(stringr)
+library(qdapRegex)
+```
+
+
+Function takes one article that has already been read in, condenses the body of each subtitle into 3 sentences and adds the summarized subtitles to a word doc
+```{r}
+summarize_article <- function(page) {
+  headlines <- page %>% html_nodes("h2") %>% html_text()
+  text <- rvest::html_nodes(page, xpath = "//h2 | //h2/following-sibling::p") %>% html_text()
+  
+  for (i in 1:length(headlines)) {
+  
+    if(i == length(headlines)) {   #checking if it is the last headline
+      preceeding <- which(text == headlines[i])
+      succeeding <- length(text) - 1
+    }
+    else {          #if it's not the last headline
+      preceeding <- which(text == headlines[i])
+      succeeding <- which(text == headlines[i+1])
+    }
+  
+    text_chunk <- text[(preceeding+1):(succeeding-1)]
+    top_n = lexRankr::lexRank(text_chunk,
+                            #only 1 article; repeat same docid for all of input vector
+                            docId = rep(1, length(text_chunk)),
+                            #return n sentences to mimick /u/autotldr's output
+                            n = 3,
+                            continuous = TRUE)
+    #reorder the top n sentences to be in order of appearance in article
+    order_of_appearance = order(as.integer(gsub("_","",top_n$sentenceId)))
+    #extract sentences in order of appearance
+    ordered_top_n = top_n[order_of_appearance, "sentence"]
+    final_para <- paste(ordered_top_n, sep="", collapse=" ")
+  
+    doc <- body_add_par(doc, headlines[i], style = "heading 2")
+    doc <- body_add_par(doc, final_para)
+  }
+}
+```
+
+
+```{r}
+#testing with one article
+page <- read_html("https://www.thedrum.com/news/2022/05/05/week-the-metaverse-starbucks-hints-nft-collection-spotify-island-and-more")
+doc <- read_docx()
+summarize_article(page)
+print(doc, target = "drum.docx")
+```
+
+- Store a list of urls
+- Open an empty doc
+- Loop over the list of urls and call the function to add each paragraph to the doc
+- Print the doc
+```{r}
+#May-June-July articles
+urls <- c("https://www.thedrum.com/news/2022/05/13/week-the-metaverse-crypto-crashes-and-criminal-russian-virtual-casino", "https://www.thedrum.com/news/2022/05/19/week-the-metaverse-coinbase-hodls-gap-opens-roblox", "https://www.thedrum.com/news/2022/05/26/week-the-metaverse-wayne-gretzky-nfts-and-andreesen-horowitz-seeks-capitalize-cryp-0", "https://www.thedrum.com/news/2022/06/02/week-the-metaverse-nft-insider-trading-arrest-and-kanye-west-eyes-web3", "https://www.thedrum.com/news/2022/06/09/week-the-metaverse-portrait-nfts-cannes-lions-and-virtual-budweiser-clydesdales", "https://www.thedrum.com/news/2022/06/16/week-the-metaverse-hellboy-comes-the-sandbox-charli-xcx-performs-roblox", "https://www.thedrum.com/news/2022/06/23/week-the-metaverse-nftnyc-meta-s-new-vr-headset-prototypes", "https://www.thedrum.com/news/2022/07/07/week-the-metaverse-the-pixar-web3-reddit-s-collectible-avatars")
+urls <- rev(urls)
+
+doc <- read_docx()
+
+for(url in urls) {
+  page <- read_html(url)
+  summarize_article(page)
+}
+
+print(doc, target = "drum-weekly.docx")
+```
+
+
+```{r}
+#brands articles
+urls <- c("https://www.thedrum.com/news/2022/06/01/5-brands-winning-the-metaverse", "https://www.thedrum.com/news/2022/06/22/inside-the-metaverse-strategies-l-or-al-and-lvmh")
+
+doc <- read_docx()
+
+for(url in urls) {
+  page <- read_html(url)
+  summarize_article(page)
+}
+
+print(doc, target = "drum-brands.docx")
+```
+
