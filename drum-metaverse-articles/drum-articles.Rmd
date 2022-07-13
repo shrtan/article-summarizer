@@ -81,7 +81,7 @@ for(url in urls) {
 print(doc, target = "drum-weekly.docx")
 ```
 
-
+(Work on putting this in a function)
 ```{r}
 #brands articles
 urls <- c("https://www.thedrum.com/news/2022/06/01/5-brands-winning-the-metaverse", "https://www.thedrum.com/news/2022/06/22/inside-the-metaverse-strategies-l-or-al-and-lvmh")
